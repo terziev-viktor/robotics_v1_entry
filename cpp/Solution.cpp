@@ -122,10 +122,7 @@ void Solution::compute(std::vector <StrideImage> &images) {
     else
     {
         // Compute on one thread
-        for (auto & image : images)
-        {
-            processImage(image);
-        }
+        processImages(&images, 0, images.size());
     }
 
 }
