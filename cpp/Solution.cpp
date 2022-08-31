@@ -17,12 +17,12 @@ static uint8_t redFilter(uint8_t redPixel)
     return redPixel - 150;
 }
 
-static std::pair<bool, std::vector<size_t>> matchInner(const size_t beginIndex, const StrideImage & image, const EyePattern & pattern)
+static std::pair<bool, std::vector<size_t>> matchPattern(const size_t beginIndex, const StrideImage & image, const EyePattern & pattern)
 {
     bool itsAMatch = true;
     std::vector<size_t> indices;
 
-    for (size_t i = 0; i < pattern.size() && itsAMatch; ++i)
+    for (size_t i = 0; i < EYE_PATTERN_COL_SIZE && itsAMatch; ++i)
     {
         size_t index = beginIndex + image.resolution.width * i;
         const char * line = pattern[i];
@@ -43,16 +43,16 @@ static std::pair<bool, std::vector<size_t>> matchInner(const size_t beginIndex, 
     return {itsAMatch, indices};
 }
 
-static std::vector<size_t> match(const StrideImage & image)
+static std::vector<size_t> findTooRedPixels(const StrideImage & image)
 {
     std::vector<size_t> tooRed;
-    for (uint32_t eyePatternIndex = 0; eyePatternIndex < EYE_PATTERNS_COUNT; ++eyePatternIndex)
+    for (const auto & eyePattern : EYE_PATTERNS)
     {
         for (size_t i = 0; i < image.redPixels.size(); ++i)
         {
             if (isTooRed(image.redPixels[i]) && std::none_of(tooRed.begin(), tooRed.end(), [i](size_t x){ return x == i; })) // there's a chance this is an eye
             {
-                auto [itsAMatch, redIndices] = matchInner(i, image, EYE_PATTERNS[eyePatternIndex]);
+                auto [itsAMatch, redIndices] = matchPattern(i, image, eyePattern);
                 if(itsAMatch)
                 {
                     tooRed.insert(tooRed.end(), redIndices.begin(), redIndices.end());
@@ -76,7 +76,7 @@ void Solution::compute(std::vector <StrideImage> &images) {
 
     for (auto & image : images)
     {
-        std::vector<size_t> tooRed = match(image);
-        applyFilter(tooRed, image);
+        const std::vector<size_t> tooRedPixels = findTooRedPixels(image);
+        applyFilter(tooRedPixels, image);
     }
 }
