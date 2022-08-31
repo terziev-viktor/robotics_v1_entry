@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <cstring>
+#include <thread>
 
 #include "utils/Image.h"
 #include "utils/FunctionTracer.h"
@@ -63,20 +64,68 @@ static std::vector<size_t> findTooRedPixels(const StrideImage & image)
     return tooRed;
 }
 
-static void applyFilter(const std::vector<size_t> & eye, StrideImage & image)
+static void applyFilter(const std::vector<size_t> & pixelIndices, StrideImage & image)
 {
-    for(auto index : eye)
+    for(auto index : pixelIndices)
     {
         image.redPixels[index] = redFilter(image.redPixels[index]);
+    }
+}
+
+static void processImage(StrideImage & image)
+{
+    applyFilter(findTooRedPixels(image), image);
+}
+
+static void processImages(std::vector<StrideImage> * images, size_t from, size_t to)
+{
+    for (size_t i = from; i < to; ++i)
+    {
+        StrideImage & refImage = (*images)[i];
+        processImage(refImage);
+    }
+}
+
+static void processImagesOnManyThreads(std::vector <StrideImage> &images, const size_t threadsCount)
+{
+    const size_t imagesCount = images.size();
+    const size_t imagesPerThread = imagesCount / threadsCount;
+    std::vector<std::thread> threads;
+    for(size_t i = 0; i < threadsCount - 1; ++i)
+    {
+        const size_t from =  i * imagesPerThread;
+        const size_t to = i * imagesPerThread + imagesPerThread;
+        threads.emplace_back(processImages, &images, from, to);
+    }
+
+    // Main thread
+    processImages(&images, (threadsCount - 1) * imagesPerThread, imagesCount);
+
+    for (auto &th : threads)
+    {
+        if (th.joinable())
+        {
+            th.join();
+        }
     }
 }
 
 void Solution::compute(std::vector <StrideImage> &images) {
     FunctionTracer<std::chrono::milliseconds> tracer("compute", "ms");
 
-    for (auto & image : images)
+    const size_t threadsCount = std::thread::hardware_concurrency();
+    const size_t imagesCount = images.size();
+    if (imagesCount > threadsCount)
     {
-        const std::vector<size_t> tooRedPixels = findTooRedPixels(image);
-        applyFilter(tooRedPixels, image);
+        processImagesOnManyThreads(images, threadsCount);
     }
+    else
+    {
+        // Compute on one thread
+        for (auto & image : images)
+        {
+            processImage(image);
+        }
+    }
+
 }

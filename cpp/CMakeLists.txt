@@ -9,6 +9,7 @@ endif()
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+find_package(Threads REQUIRED)
 
 include_directories(.)
 include_directories(utils)
@@ -17,3 +18,9 @@ add_executable(eye_filter
         main.cpp
         utils/Image.cpp
         Solution.cpp)
+
+target_link_libraries(
+        eye_filter
+        PUBLIC
+        Threads::Threads
+)
