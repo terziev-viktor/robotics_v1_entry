@@ -2,21 +2,20 @@
 #define SOLUTION_H_
 
 #include <cstdint>
-
+#include <bitset>
+#include <EyePatterns.h>
 #include "utils/Image.h"
 #include "utils/FunctionTracer.h"
 
+class EyeLocation {
+public:
+    size_t location;
+    uint32_t type;
+};
+
 class Solution {
 public:
-  void compute([[maybe_unused]]std::vector<PackedImage> &images) {
-    FunctionTracer<std::chrono::milliseconds> tracer("compute", "ms");
-    //TODO: fill solution
-  }
-
-  void compute([[maybe_unused]]std::vector<StrideImage> &images) {
-    FunctionTracer<std::chrono::milliseconds> tracer("compute", "ms");
-    //TODO: fill solution
-  }
+  static void compute([[maybe_unused]]std::vector<StrideImage> &images);
 };
 
 #endif /* SOLUTION_H_ */

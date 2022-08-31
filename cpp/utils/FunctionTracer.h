@@ -20,7 +20,7 @@ public:
     << std::endl;
   }
 
-  int64_t captureDuration() const {
+  [[nodiscard]] int64_t captureDuration() const {
     const auto end = std::chrono::system_clock::now();
     return std::chrono::duration_cast<Ratio>(end - mStart).count();
   }
