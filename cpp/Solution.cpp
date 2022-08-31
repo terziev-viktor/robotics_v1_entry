@@ -7,7 +7,7 @@
 #include "utils/FunctionTracer.h"
 #include "utils/EyePatterns.h"
 
-static bool isRedEnough(uint8_t red)
+static bool isTooRed(uint8_t red)
 {
     return red >= 200;
 }
@@ -17,63 +17,57 @@ static uint8_t redFilter(uint8_t redPixel)
     return redPixel - 150;
 }
 
-static bool matchInner(const size_t beginIndex, const StrideImage & image, const EyePattern & pattern)
+static std::pair<bool, std::vector<size_t>> matchInner(const size_t beginIndex, const StrideImage & image, const EyePattern & pattern)
 {
     bool itsAMatch = true;
+    std::vector<size_t> indices;
+
     for (size_t i = 0; i < pattern.size() && itsAMatch; ++i)
     {
         size_t index = beginIndex + image.resolution.width * i;
         const char * line = pattern[i];
         const size_t len = strlen(line);
-        for (int j = 0; j < len && itsAMatch; ++j, ++index)
+        for (size_t j = 0; j < len && itsAMatch; ++j, ++index)
         {
             if (line[j] == ' ')
             {
-                itsAMatch = !isRedEnough(image.redPixels[index]);
+                itsAMatch = !isTooRed(image.redPixels[index]);
             }
             else
             {
-                itsAMatch = isRedEnough(image.redPixels[index]); // TODO: Only red pixels are taken into account?
+                itsAMatch = isTooRed(image.redPixels[index]);
+                indices.push_back(index);
             }
         }
     }
-    return itsAMatch;
+    return {itsAMatch, indices};
 }
 
-static std::vector<EyeLocation> match(const StrideImage & image)
+static std::vector<size_t> match(const StrideImage & image)
 {
-    std::vector<EyeLocation> matches;
+    std::vector<size_t> tooRed;
     for (uint32_t eyePatternIndex = 0; eyePatternIndex < EYE_PATTERNS_COUNT; ++eyePatternIndex)
     {
         for (size_t i = 0; i < image.redPixels.size(); ++i)
         {
-            const uint8_t redPixel = image.redPixels[i];
-            if (isRedEnough(redPixel) && matchInner(i, image, EYE_PATTERNS[eyePatternIndex]))
+            if (isTooRed(image.redPixels[i]) && std::none_of(tooRed.begin(), tooRed.end(), [i](size_t x){ return x == i; })) // there's a chance this is an eye
             {
-                matches.push_back((EyeLocation){ .location = i, .type = eyePatternIndex });
+                auto [itsAMatch, redIndices] = matchInner(i, image, EYE_PATTERNS[eyePatternIndex]);
+                if(itsAMatch)
+                {
+                    tooRed.insert(tooRed.end(), redIndices.begin(), redIndices.end());
+                }
             }
         }
     }
-    return std::move(matches);
+    return tooRed;
 }
 
-static void applyFilter(const EyeLocation & eye, StrideImage & image)
+static void applyFilter(const std::vector<size_t> & eye, StrideImage & image)
 {
-    EyePattern pattern = EYE_PATTERNS[eye.type];
-    size_t beginIndex = eye.location;
-
-    for (size_t i = 0; i < pattern.size(); ++i)
+    for(auto index : eye)
     {
-        const char * line = pattern[i];
-        const size_t len = strlen(line);
-        size_t index = beginIndex + image.resolution.width * i;
-        for (size_t j = 0; j < len; ++j, ++index)
-        {
-            if (line[j] != ' ')
-            {
-                image.redPixels[index] = redFilter(image.redPixels[index]);
-            }
-        }
+        image.redPixels[index] = redFilter(image.redPixels[index]);
     }
 }
 
@@ -82,10 +76,7 @@ void Solution::compute(std::vector <StrideImage> &images) {
 
     for (auto & image : images)
     {
-        std::vector<EyeLocation> eyes = match(image);
-        for (auto & eye : eyes)
-        {
-            applyFilter(eye, image);
-        }
+        std::vector<size_t> tooRed = match(image);
+        applyFilter(tooRed, image);
     }
 }
